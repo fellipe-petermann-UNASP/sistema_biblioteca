@@ -1,7 +1,6 @@
 package br.com.biblioteca.model;
 
-// MUDANÇA 1: A classe agora é 'abstract'. Não pode mais ser instanciada com 'new ItemAcervo(...)'
-public abstract class ItemAcervo {
+public abstract class ItemAcervo implements Comparable<ItemAcervo> {
     protected Long id;
     protected String titulo;
     protected boolean disponivel;
@@ -9,29 +8,39 @@ public abstract class ItemAcervo {
     public ItemAcervo(Long id, String titulo) {
         this.id = id;
         this.titulo = titulo;
-        this.disponivel = true;
+        this.disponivel = true; // Por padrão, todo item novo inicia disponível
     }
 
-    // MUDANÇA 2: Método abstrato. Não tem mais corpo { }.
-    // Obriga as subclasses (LivroFisico, Ebook) a implementarem a regra de empréstimo delas
+    // Método abstrato: obriga as subclasses (LivroFisico, Ebook) a implementarem sua regra
     public abstract boolean emprestar();
 
-    // Métodos concretos continuam normais
+    // Métodos concretos de devolução
     public void devolver() {
         this.disponivel = true;
         System.out.println("Item '" + this.titulo + "' devolvido.");
     }
 
-    // MUDANÇA 3: Getters necessários para o Polimorfismo funcionar na classe Biblioteca
+    // Getters
+    public Long getId() {
+        return id;
+    }
+
     public String getTitulo() {
         return titulo;
     }
 
-    public boolean isDisponivel() { // Getter para boolean geralmente começa com 'is'
+    public boolean isDisponivel() {
         return disponivel;
     }
 
-    public Long getId() {
-        return id;
+    // CORREÇÃO: Atualiza a variável de instância com o valor recebido
+    public void setDisponivel(boolean disponivel) {
+        this.disponivel = disponivel;
+    }
+
+    // Ordenação alfabética por título (Bloco 07)
+    @Override
+    public int compareTo(ItemAcervo outroItem) {
+        return this.titulo.compareToIgnoreCase(outroItem.getTitulo());
     }
 }

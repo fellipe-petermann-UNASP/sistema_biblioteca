@@ -1,23 +1,63 @@
-// Pacote responsável por classes de serviço e regras de negócio do sistema
 package br.com.biblioteca.service;
 
-// Importação dos modelos
+import br.com.biblioteca.event.EmprestimoListener;
+import br.com.biblioteca.exception.ItemIndisponivelException;
+import br.com.biblioteca.exception.LimiteEmprestimoExcedidoException;
 import br.com.biblioteca.model.ItemAcervo;
 import br.com.biblioteca.model.Usuario;
 
-public class GestorEmprestimo {
-    public void registrarEmprestimo(Usuario usuario, ItemAcervo item){
-        System.out.println("\n--- PROCESSANDO SOLICITAÇÃO DE EMPRÉSTIMO ---");
-        // Exibe quem está solicitando
-        usuario.exibirPerfil();
-        // Execução da regra de empréstimo específica do item
-        boolean sucesso = item.emprestar();
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-        if (sucesso){
-            System.out.println("SUCESSO: Item gerado para " + usuario.getNome() +". Prazo para devolução: " + usuario.getPrazoEmprestimoDias() + "dias.");
-        } else {
-            System.out.println("FALHA: Não foi possível realizar o empréstimo do item");
+public class GestorEmprestimo {
+    // MAP: Mapeia cada Usuário para a sua Lista de Itens Emprestados
+    private Map<Usuario, List<ItemAcervo>> emprestimosAtivos;
+    // LIST: Mantém a lista de ouvintes (Listeners) cadastrados para eventos
+    private List<EmprestimoListener> listeners;
+
+    public GestorEmprestimo() {
+        this.emprestimosAtivos = new HashMap<>();
+        this.listeners = new ArrayList<>();
+    }
+
+    public void registrarListener(EmprestimoListener listener) {
+        this.listeners.add(listener);
+    }
+
+    public void realizarEmprestimo(Usuario usuario, ItemAcervo item)
+            throws ItemIndisponivelException, LimiteEmprestimoExcedidoException {
+
+        // 1. Validação de Exceção: Item indisponível
+        if (!item.isDisponivel()) {
+            throw new ItemIndisponivelException("O item '" + item.getTitulo() + "' já está emprestado.");
         }
-        System.out.println("----------------------------------------\n");
+
+        // Obtém ou inicializa a lista de empréstimos do usuário
+        List<ItemAcervo> itensDoUsuario = emprestimosAtivos.getOrDefault(usuario, new ArrayList<>());
+
+        // 2. Validação de Exceção: Limite do Usuário (Polimorfismo dinâmico de Aluno/Professor)
+        if (itensDoUsuario.size() >= usuario.getLimiteLivros()) {
+            throw new LimiteEmprestimoExcedidoException(
+                    "Usuário " + usuario.getNome() + " atingiu o limite máximo de " + usuario.getLimiteLivros() + " itens."
+            );
+        }
+
+        // 3. Sucesso: Executa o empréstimo
+        item.setDisponivel(false);
+        itensDoUsuario.add(item);
+        emprestimosAtivos.put(usuario, itensDoUsuario);
+
+        System.out.println("Empréstimo realizado com sucesso: '" + item.getTitulo() + "' para " + usuario.getNome());
+
+        // 4. DISPARO DE EVENTO (Notifica todos os listeners registrados)
+        dispararEventoEmprestimo(usuario, item);
+    }
+
+    private void dispararEventoEmprestimo(Usuario usuario, ItemAcervo item) {
+        for (EmprestimoListener listener : listeners) {
+            listener.onEmprestimoRealizado(usuario, item);
+        }
     }
 }
