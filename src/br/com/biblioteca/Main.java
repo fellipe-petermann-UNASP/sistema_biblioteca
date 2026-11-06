@@ -3,47 +3,45 @@ package br.com.biblioteca;
 import br.com.biblioteca.event.EmprestimoListener;
 import br.com.biblioteca.exception.ItemIndisponivelException;
 import br.com.biblioteca.exception.LimiteEmprestimoExcedidoException;
+import br.com.biblioteca.exception.UsuarioNaoEncontradoException;
+import br.com.biblioteca.interfaces.Higienizavel;
+import br.com.biblioteca.interfaces.Notificavel;
 import br.com.biblioteca.model.*;
 import br.com.biblioteca.service.GestorEmprestimo;
+import br.com.biblioteca.dao.ItemAcervoDAO;
+import br.com.biblioteca.dao.ItemAcervoDAOJDBC;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        System.out.println("=== SISTEMA DE BIBLIOTECA - CONSOLIDAÇÃO ===\n");
+        System.out.println("=== TESTE DE CONEXÃO AO MYSQL (SERVIDOR DDNS) ===\n");
 
-        Biblioteca biblioteca = new Biblioteca("Biblioteca UNASP");
-        GestorEmprestimo gestor = new GestorEmprestimo();
+        ItemAcervoDAO dao = new ItemAcervoDAOJDBC();
 
-        // 1. REGISTRO DE EVENTO (Handler / Callback)
-        gestor.registrarListener((usuario, item) -> {
-            System.out.println("🔔 [EVENTO DISPARADO] Enviando notificação para " + usuario.getEmail()
-                    + " sobre a retirada do item: " + item.getTitulo());
-        });
+        System.out.println("Conectando ao banco e buscando o acervo de livros...\n");
+        List<ItemAcervo> itensDoBanco = dao.listarTodos();
 
-        // 2. CADASTRO DE DADOS
-        Aluno aluno = new Aluno(1L, "João Silva", "joao@aluno.edu.br", "2026A1", "Ciência da Computação");
-        Professor prof = new Professor(2L, "Dra. Ana", "ana@docente.edu.br", "Computação", "SIAPE-9090");
+        if (itensDoBanco.isEmpty()) {
+            System.out.println("A tabela 'livros' está vazia ou a conexão falhou.");
+        } else {
+            System.out.println("--- ACERVO CARREGADO DO BANCO DE DADOS ---");
+            for (ItemAcervo item : itensDoBanco) {
 
-        LivroFisico livro1 = new LivroFisico(101L, "Código Limpo", "Robert C. Martin", "978-8576082675");
-        Ebook ebook1 = new Ebook(201L, "Entendendo Algoritmos", 12.5, "PDF");
+                // Exibe os dados comuns da Superclasse
+                System.out.print("- Título: " + item.getTitulo() +
+                        " | Disponível: " + (item.isDisponivel() ? "Sim" : "Não"));
 
-        biblioteca.adicionarItem(livro1);
-        biblioteca.adicionarItem(ebook1);
-        biblioteca.registrarUsuario(aluno, aluno.getMatricula());
+                // Exibe os dados específicos fazendo o Downcasting seguro
+                if (item instanceof LivroFisico) {
+                    LivroFisico fisico = (LivroFisico) item;
+                    System.out.print(" | Autor: " + fisico.getAutor() +
+                            " | ISBN: " + fisico.getIsbn());
+                }
 
-        // 3. BLOCOS TRY-CATCH-FINALLY (Tratamento de Exceções)
-        System.out.println("\n--- TESTE DE EMPRÉSTIMO COM EVENTOS E EXCEÇÕES ---");
-        try {
-            gestor.realizarEmprestimo(aluno, livro1);
-
-            // Tentativa de reempréstimo do mesmo item (Dispara ItemIndisponivelException)
-            gestor.realizarEmprestimo(prof, livro1);
-
-        } catch (ItemIndisponivelException e) {
-            System.err.println("❌ FALHA DE REGRA DE NEGÓCIO: " + e.getMessage());
-        } catch (LimiteEmprestimoExcedidoException e) {
-            System.err.println("❌ LIMITE EXCEDIDO: " + e.getMessage());
-        } finally {
-            System.out.println("\nLOG: Operação de empréstimo finalizada.");
+                System.out.println(); // Quebra de linha
+            }
         }
     }
 }
